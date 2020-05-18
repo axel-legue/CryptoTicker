@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:bitcoin_ticker/network/coin_api_helper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -12,6 +13,31 @@ class PriceScreen extends StatefulWidget {
 
 class _PriceScreenState extends State<PriceScreen> {
   String selectedCurrencies = currenciesList.first;
+  int value = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    getBitCoinValue();
+  }
+
+  getBitCoinValue() async {
+    CoinAPIHelper apiHelper = CoinAPIHelper(
+        "https://rest.coinapi.io/v1/exchangerate/BTC/$selectedCurrencies");
+    updateUI(await apiHelper.getCryptoPrice());
+  }
+
+  void updateUI(dynamic cryptoData) {
+    setState(() {
+      print('value :' + cryptoData.toString());
+      if (cryptoData == null) {
+        value = 0;
+      } else {
+        var result = cryptoData['rate'] as double;
+        value = result.toInt();
+      }
+    });
+  }
 
   DropdownButton<String> getAndroidDropDown() {
     var currencies =
@@ -27,6 +53,7 @@ class _PriceScreenState extends State<PriceScreen> {
       items: currencies,
       onChanged: (String newValue) {
         setState(() {
+          getBitCoinValue();
           selectedCurrencies = newValue;
         });
       },
@@ -69,7 +96,7 @@ class _PriceScreenState extends State<PriceScreen> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
                 child: Text(
-                  '1 BTC = ? $selectedCurrencies',
+                  '1 BTC = $value $selectedCurrencies',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20.0,
