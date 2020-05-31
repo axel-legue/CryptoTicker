@@ -1,6 +1,5 @@
 import 'dart:io' show Platform;
 
-import 'package:bitcoin_ticker/network/coin_api_helper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -12,32 +11,11 @@ class PriceScreen extends StatefulWidget {
 }
 
 class _PriceScreenState extends State<PriceScreen> {
-  String selectedCurrencies = currenciesList.first;
+  String selectedCurrency = currenciesList.first;
   int value = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    getBitCoinValue();
-  }
-
-  getBitCoinValue() async {
-    CoinAPIHelper apiHelper = CoinAPIHelper(
-        "https://rest.coinapi.io/v1/exchangerate/BTC/$selectedCurrencies");
-    updateUI(await apiHelper.getCryptoPrice());
-  }
-
-  void updateUI(dynamic cryptoData) {
-    setState(() {
-      print('value :' + cryptoData.toString());
-      if (cryptoData == null) {
-        value = 0;
-      } else {
-        var result = cryptoData['rate'] as double;
-        value = result.toInt();
-      }
-    });
-  }
+  Map<String, String> coinValues = {};
+  bool isWaiting = false;
 
   DropdownButton<String> getAndroidDropDown() {
     var currencies =
@@ -49,12 +27,12 @@ class _PriceScreenState extends State<PriceScreen> {
     }).toList();
 
     return DropdownButton(
-      value: selectedCurrencies,
+      value: selectedCurrency,
       items: currencies,
       onChanged: (String newValue) {
         setState(() {
-          getBitCoinValue();
-          selectedCurrencies = newValue;
+          selectedCurrency = newValue;
+          getData();
         });
       },
     );
@@ -69,10 +47,60 @@ class _PriceScreenState extends State<PriceScreen> {
       backgroundColor: Colors.lightBlue,
       itemExtent: 32.0,
       onSelectedItemChanged: (selectedIndex) {
-        return currenciesList[selectedIndex];
+        setState(() {
+          selectedCurrency = currenciesList[selectedIndex];
+          getData();
+        });
       },
       children: currencies,
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getData();
+  }
+
+  Column createCryptoCurrencyCard() {
+    List<CryptoWidget> cryptoCards = [];
+    for (var cryptoCurrency in cryptoList) {
+      cryptoCards.add(
+        CryptoWidget(
+            value: isWaiting ? '?' : coinValues[cryptoCurrency],
+            selectedCurrencies: selectedCurrency,
+            cryptoCurrency: cryptoCurrency),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: cryptoCards,
+    );
+  }
+
+  getData() async {
+    isWaiting = true;
+    try {
+      var data = await CoinData().getCoinData(selectedCurrency);
+      isWaiting = false;
+      setState(() {
+        coinValues = data;
+      });
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  void updateUI(dynamic cryptoData) {
+    setState(() {
+      print('value :' + cryptoData.toString());
+      if (cryptoData == null) {
+        value = 0;
+      } else {
+        var result = cryptoData['rate'] as double;
+        value = result.toInt();
+      }
+    });
   }
 
   @override
@@ -85,27 +113,7 @@ class _PriceScreenState extends State<PriceScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Padding(
-            padding: EdgeInsets.fromLTRB(18.0, 18.0, 18.0, 0),
-            child: Card(
-              color: Colors.lightBlueAccent,
-              elevation: 5.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
-                child: Text(
-                  '1 BTC = $value $selectedCurrencies',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20.0,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          createCryptoCurrencyCard(),
           Container(
             height: 150.0,
             alignment: Alignment.center,
@@ -114,6 +122,44 @@ class _PriceScreenState extends State<PriceScreen> {
             child: Platform.isIOS ? getIOSPicker() : getAndroidDropDown(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class CryptoWidget extends StatelessWidget {
+  const CryptoWidget({
+    Key key,
+    @required this.value,
+    @required this.selectedCurrencies,
+    @required this.cryptoCurrency,
+  }) : super(key: key);
+
+  final String value;
+  final String selectedCurrencies;
+  final String cryptoCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18.0, 18.0, 18.0, 0),
+      child: Card(
+        color: Colors.lightBlueAccent,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
+          child: Text(
+            '1 $cryptoCurrency = $value $selectedCurrencies',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20.0,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
